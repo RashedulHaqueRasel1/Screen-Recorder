@@ -7,6 +7,8 @@ import type {
   RecorderStatus,
   RecordingArtifact,
 } from "../types/recorder";
+import { useRecordingsStore } from "@/stores/recordings-store";
+import type { RecordingQuality } from "@/types/recording";
 
 const DEFAULT_SETTINGS: RecorderSettings = {
   source: "screen",
@@ -14,6 +16,12 @@ const DEFAULT_SETTINGS: RecorderSettings = {
   webcam: false,
   systemAudio: true,
   quality: "1080p",
+};
+
+const QUALITY_CONSTRAINTS: Record<RecordingQuality, { width: number; height: number }> = {
+  "720p": { width: 1280, height: 720 },
+  "1080p": { width: 1920, height: 1080 },
+  "1440p": { width: 2560, height: 1440 },
 };
 
 function getBestMimeType() {
@@ -41,7 +49,6 @@ export function useRecorder() {
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
 
-  // Live preview streams and countdown value
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [webcamStream, setWebcamStream] = useState<MediaStream | null>(null);
   const [countdownValue, setCountdownValue] = useState(0);
@@ -53,6 +60,8 @@ export function useRecorder() {
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<number | null>(null);
   const durationRef = useRef(0);
+
+  const addRecording = useRecordingsStore((s) => s.addRecording);
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) window.clearInterval(timerRef.current);
@@ -80,16 +89,17 @@ export function useRecorder() {
 
   const buildCombinedStream = useCallback(
     async (source: RecorderSource) => {
-      // Release camera preview before acquiring recording stream
       if (webcamStreamRef.current) {
         webcamStreamRef.current.getTracks().forEach((track) => track.stop());
         webcamStreamRef.current = null;
         setWebcamStream(null);
       }
 
+      const dims = QUALITY_CONSTRAINTS[settings.quality];
+
       if (source === "webcam") {
         const webcamStreamLocal = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: { width: dims.width, height: dims.height },
           audio: settings.microphone,
         });
         webcamStreamRef.current = webcamStreamLocal;
@@ -98,7 +108,7 @@ export function useRecorder() {
       }
 
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: { width: dims.width, height: dims.height },
         audio: settings.systemAudio,
       });
       screenStreamRef.current = displayStream;
@@ -116,7 +126,7 @@ export function useRecorder() {
       if (settings.webcam) {
         try {
           webcamStreamLocal = await navigator.mediaDevices.getUserMedia({
-            video: true,
+            video: { width: 640, height: 360 },
             audio: false,
           });
           webcamStreamRef.current = webcamStreamLocal;
@@ -135,7 +145,7 @@ export function useRecorder() {
 
       return tracks.length ? new MediaStream(tracks) : createFallbackStream();
     },
-    [settings.microphone, settings.systemAudio, settings.webcam]
+    [settings.microphone, settings.systemAudio, settings.webcam, settings.quality]
   );
 
   const startRecording = useCallback(
@@ -152,7 +162,7 @@ export function useRecorder() {
         const mimeType = getBestMimeType();
         const recorder = new MediaRecorder(
           combinedStream,
-          mimeType ? { mimeType } : undefined
+          mimeType ? { mimeType, videoBitsPerSecond: 4_000_000 } : undefined
         );
 
         chunksRef.current = [];
@@ -186,7 +196,6 @@ export function useRecorder() {
       }, 1000);
       return () => clearTimeout(timer);
     } else {
-      // Start recording!
       if (recorderRef.current && recorderRef.current.state === "inactive") {
         try {
           recorderRef.current.onstop = () => {
@@ -196,18 +205,37 @@ export function useRecorder() {
             const url = URL.createObjectURL(blob);
 
             setPreviewUrl(url);
-            setArtifacts((current) => [
-              {
-                id: crypto.randomUUID(),
-                name: `Recording ${current.length + 1}`,
-                createdAt: new Date().toISOString(),
-                duration: durationRef.current,
-                size: blob.size,
-                url,
-                mimeType: blob.type,
-              },
-              ...current,
-            ]);
+            const dims = QUALITY_CONSTRAINTS[settings.quality];
+            const artifact: RecordingArtifact = {
+              id: crypto.randomUUID(),
+              name: `Recording ${artifacts.length + 1}`,
+              createdAt: new Date().toISOString(),
+              duration: durationRef.current,
+              size: blob.size,
+              url,
+              mimeType: blob.type,
+            };
+
+            setArtifacts((current) => [artifact, ...current]);
+
+            // Persist to global store
+            addRecording({
+              id: artifact.id,
+              name: artifact.name,
+              url,
+              mimeType: artifact.mimeType,
+              duration: artifact.duration,
+              size: artifact.size,
+              resolution: `${dims.width}x${dims.height}`,
+              quality: settings.quality,
+              createdAt: artifact.createdAt,
+              updatedAt: artifact.createdAt,
+              status: "local",
+              hasAudio: settings.microphone || settings.systemAudio,
+              hasWebcam: settings.webcam || settings.source === "webcam",
+              source: settings.source,
+            });
+
             setStatus("stopped");
             setDuration(0);
             setAudioLevel(0);
@@ -234,7 +262,7 @@ export function useRecorder() {
         }
       }
     }
-  }, [status, countdownValue, resetSession]);
+  }, [status, countdownValue, resetSession, addRecording, settings.quality, settings.source, settings.microphone, settings.systemAudio, settings.webcam, artifacts.length]);
 
   const pauseRecording = useCallback(() => {
     if (recorderRef.current?.state === "recording") {
@@ -298,11 +326,11 @@ export function useRecorder() {
       });
       if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     };
-  }, [artifacts, previewUrl, stopTimer, stopTracks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Preview webcam (idle / setup mode)
   useEffect(() => {
-    // Only run preview if status is idle, stopped, or error.
     if (status !== "idle" && status !== "stopped" && status !== "error") return;
 
     let activeStream: MediaStream | null = null;

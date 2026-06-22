@@ -1,6 +1,6 @@
 # 🎥 RecStudio — Premium Loom-Style Screen Recorder
 
-A modern, highly optimized, and privacy-first web-based screen recording application. Built with **Next.js 15 (App Router)**, **React 19**, **TypeScript**, and **Tailwind CSS**, RecStudio enables users to record their screen, webcam, and audio in high definition directly in the browser—with zero server uploads or installations.
+A modern, highly optimized, and privacy-first web-based screen recording application. Built with **Next.js 15 (App Router)**, **React 19**, **TypeScript**, and **Tailwind CSS**, RecStudio enables users to record their screen, webcam, and audio in high definition directly in the browser. Recording works without an account; sign-in (Google) is only required to **publish** a recording to Google Drive or generate a shareable link.
 
 ---
 
@@ -12,7 +12,9 @@ A modern, highly optimized, and privacy-first web-based screen recording applica
 - **⏱️ Animated Countdown**: A 3-second visual countdown with glowing indicator rings to let you prepare before recording starts.
 - **📊 Real-time Recording HUD**: Tracks live duration and features a dynamic microphone audio level meter (waveform visualizer).
 - **📁 Local Recordings Library**: A built-in gallery to manage your history. Review, play, download (high-quality WebM format), or delete your captures.
-- **🔒 Privacy-First Architecture**: Powered entirely by client-side APIs (`MediaRecorder` and `mediaDevices`). All audio/video processing and storage remain 100% local in your browser.
+- **🔓 No Account Required to Record**: Guests can capture, preview, edit, and download immediately. Sign-in is prompted only when publishing or sharing.
+- **🚀 One-Click Publish to Google Drive**: Publish a recording to upload it to Google Drive and generate a shareable link in a single action. If the user is a guest, the Google sign-in flow runs and the publish resumes automatically afterwards.
+- **🔒 Privacy-First Architecture**: Powered by client-side APIs (`MediaRecorder` and `mediaDevices`). Audio/video processing remains local; only published recordings touch Google Drive.
 - **✨ Glassmorphic Dark UI**: High-end aesthetic styling leveraging Tailwind CSS, fluid gradients, and Framer Motion micro-animations.
 
 ---
@@ -25,7 +27,8 @@ A modern, highly optimized, and privacy-first web-based screen recording applica
 - **Styling**: [Tailwind CSS v3](https://tailwindcss.com/)
 - **Animations**: [Framer Motion](https://www.framer.com/motion/)
 - **Icons**: [Lucide React](https://lucide.dev/)
-- **APIs**: HTML5 MediaDevices API, MediaStream API, and MediaRecorder API
+- **Authentication**: [Auth.js / NextAuth v5](https://authjs.dev/) with the Google provider
+- **APIs**: HTML5 MediaDevices API, MediaStream API, MediaRecorder API, Google Drive REST API
 
 ---
 
@@ -82,14 +85,43 @@ Install all required node packages:
 npm install
 ```
 
-### 3. Start Development Server
+### 3. Configure Environment Variables
+RecStudio uses Auth.js (NextAuth v5) with Google OAuth for sign-in, and Google Drive for publishing. Copy the example file and fill in real values:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env`:
+
+| Variable | Description |
+| --- | --- |
+| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID (Web application type) from Google Cloud Console. |
+| `GOOGLE_CLIENT_SECRET` | Matching client secret. |
+| `AUTH_SECRET` | Session JWT secret. Generate with `openssl rand -base64 32`. |
+| `AUTH_URL` | Canonical app URL. `http://localhost:3000` in dev, `https://<your-domain>` in prod. |
+| `AUTH_TRUST_HOST` | Set to `true`. Required by Auth.js v5 on non-Vercel hosts. |
+
+> The app validates these at startup — missing variables cause a clear boot error.
+
+### 4. Set Up Google OAuth & Drive
+
+1. Open the [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials).
+2. Create an **OAuth 2.0 Client ID** (Application type: **Web application**).
+3. Add the following **Authorized redirect URIs**:
+   - `http://localhost:3000/api/auth/callback/google` (development)
+   - `https://<your-production-domain>/api/auth/callback/google` (production)
+4. Enable the **Google Drive API** for the same project.
+5. While the app is unverified, add your test users under **OAuth consent screen → Test users**. (RecStudio only requests the `drive.file` scope — files it creates, never full Drive access — so the app does **not** require restricted-scope verification.)
+
+### 5. Start Development Server
 Run the local dev server:
 ```bash
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your web browser to access the studio.
 
-### 4. Build for Production
+### 6. Build for Production
 To build a production-ready optimized build:
 ```bash
 npm run build
@@ -116,10 +148,11 @@ npm start
 
 ## 🔒 Security & Privacy
 
-Your privacy is paramount. RecStudio does not transfer any video or audio recordings to external databases.
-- All operations are executed client-side.
-- No sign-ups or credentials required to record.
-- Downloaded files are saved directly onto your device.
+- **No account required to record.** Recording, preview, edit, and download happen entirely client-side; nothing is uploaded unless you choose to publish.
+- **Publish is gated behind sign-in.** Sign-in (Google) is requested only when you click Publish — and the action resumes automatically once you return, so you don't have to repeat it.
+- **Scoped Drive access.** RecStudio requests only the `drive.file` scope — it can manage the files it creates, never your entire Drive.
+- **Server-side token refresh.** Google access tokens expire hourly; refresh happens on the server inside the Auth.js JWT callback, so uploads keep working without forcing re-login. The refresh token never reaches the browser.
+- **Recordings stay local.** Unless published, recordings never leave your device. Downloads save directly to your device.
 
 ---
 
