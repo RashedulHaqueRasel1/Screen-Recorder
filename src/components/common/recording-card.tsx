@@ -32,6 +32,7 @@ import { UploadButton } from "@/components/drive/upload-button";
 import { ShareDialog } from "@/components/drive/share-dialog";
 import { useRecordingsStore } from "@/stores/recordings-store";
 import { formatBytes, formatDuration, formatRelativeTime } from "@/lib/format";
+import { getRecordingFilename } from "@/lib/recording-file";
 import { cn } from "@/lib/utils";
 import type { Recording } from "@/types/recording";
 
@@ -48,7 +49,7 @@ export function RecordingCard({ recording, onPreview, index = 0 }: RecordingCard
     if (!recording.url) return;
     const a = document.createElement("a");
     a.href = recording.url;
-    a.download = `${recording.name}.webm`;
+    a.download = getRecordingFilename(recording.name, recording.mimeType);
     a.click();
   };
 

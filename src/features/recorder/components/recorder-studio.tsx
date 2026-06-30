@@ -25,6 +25,7 @@ import { useMemo, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getRecordingExtension } from "@/lib/recording-file";
 import { formatBytes, formatDuration } from "../utils/format";
 import { useRecorder } from "../hooks/use-recorder";
 
@@ -114,7 +115,7 @@ export function RecorderStudio() {
     link.href = artifact.url;
     link.download = `${artifact.name}-${new Date(artifact.createdAt)
       .toISOString()
-      .replace(/[:.]/g, "-")}.webm`;
+      .replace(/[:.]/g, "-")}.${getRecordingExtension(artifact.mimeType)}`;
     link.click();
   };
 

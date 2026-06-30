@@ -16,7 +16,6 @@ import {
   Pencil,
   Play,
   Scissors,
-  ScissorsLine,
   SlidersHorizontal,
   Sparkles,
   Square,
@@ -233,7 +232,7 @@ export function EditorPanel({ recording, url, onRename }: EditorPanelProps) {
     { id: "volume", label: "Volume", icon: Volume2 },
     { id: "audio", label: "Audio", icon: Music },
     { id: "crop", label: "Crop", icon: Crop },
-    { id: "split", label: "Split", icon: ScissorsLine },
+    { id: "split", label: "Split", icon: Scissors },
   ];
 
   return (
@@ -516,7 +515,7 @@ export function EditorPanel({ recording, url, onRename }: EditorPanelProps) {
                   Split Point
                 </label>
                 <div className="flex items-center gap-3 mt-2">
-                  <ScissorsLine className="h-4 w-4 text-purple-500 shrink-0" />
+                  <Scissors className="h-4 w-4 text-purple-500 shrink-0" />
                   <Slider
                     value={[splitTime]}
                     min={0.1}

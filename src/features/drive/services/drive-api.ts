@@ -1,6 +1,7 @@
 "use client";
 
 import type { Recording } from "@/types/recording";
+import { getRecordingFilename, getUploadMimeType } from "@/lib/recording-file";
 
 const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
@@ -20,7 +21,10 @@ async function recordingToFile(recording: Recording): Promise<File | null> {
     try {
       const response = await fetch(recording.url);
       const blob = await response.blob();
-      return new File([blob], `${recording.name}.webm`, { type: recording.mimeType });
+      const mimeType = getUploadMimeType(recording.mimeType || blob.type);
+      return new File([blob], getRecordingFilename(recording.name, mimeType), {
+        type: mimeType,
+      });
     } catch {
       return null;
     }
@@ -41,11 +45,12 @@ export async function uploadToDrive(
   if (!file) {
     throw new Error("Recording file is no longer available. Please re-record.");
   }
+  const uploadMimeType = file.type || getUploadMimeType(recording.mimeType);
 
   // Step 1: Start resumable session with metadata
   const metadata = {
-    name: `${recording.name}.webm`,
-    mimeType: recording.mimeType,
+    name: getRecordingFilename(recording.name, uploadMimeType),
+    mimeType: uploadMimeType,
   };
 
   const sessionResponse = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=resumable`, {
@@ -53,7 +58,7 @@ export async function uploadToDrive(
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
-      "X-Upload-Content-Type": recording.mimeType,
+      "X-Upload-Content-Type": uploadMimeType,
       "X-Upload-Content-Length": String(file.size),
     },
     body: JSON.stringify(metadata),
@@ -70,7 +75,7 @@ export async function uploadToDrive(
   }
 
   // Step 2: Upload the file content with progress tracking
-  await uploadWithProgress(sessionUrl, file, recording.mimeType, onProgress);
+  await uploadWithProgress(sessionUrl, file, uploadMimeType, onProgress);
 
   // Step 3: Get file metadata (link, id)
   const metaResponse = await fetch(`${DRIVE_FILES_URL}?fields=id,name,webViewLink`, {

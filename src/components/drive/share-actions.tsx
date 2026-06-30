@@ -13,6 +13,8 @@ interface ShareActionsProps {
   className?: string;
   /** Show the truncated URL text inline (default: true) */
   showUrl?: boolean;
+  /** Show the Share dialog trigger (default: true) */
+  showShare?: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ export function ShareActions({
   size = "sm",
   className,
   showUrl = true,
+  showShare = true,
 }: ShareActionsProps) {
   const [copied, setCopied] = useState(false);
   const shareUrl = recording.shareUrl ?? recording.driveUrl ?? "";
@@ -76,7 +79,7 @@ export function ShareActions({
         ) : (
           <>
             <Link2 className="h-3 w-3" />
-            Copy
+            Copy Link
           </>
         )}
       </Button>
@@ -95,15 +98,17 @@ export function ShareActions({
       </Button>
 
       {/* Share */}
-      <ShareDialog
-        recording={recording}
-        trigger={
-          <Button variant="outline" size={size} className="gap-1.5 text-xs rounded-lg">
-            <Share2 className="h-3 w-3" />
-            Share
-          </Button>
-        }
-      />
+      {showShare && (
+        <ShareDialog
+          recording={recording}
+          trigger={
+            <Button variant="outline" size={size} className="gap-1.5 text-xs rounded-lg">
+              <Share2 className="h-3 w-3" />
+              Share
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 }

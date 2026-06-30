@@ -27,6 +27,9 @@ const QUALITY_CONSTRAINTS: Record<RecordingQuality, { width: number; height: num
 function getBestMimeType() {
   return (
     [
+      "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+      "video/mp4;codecs=h264,aac",
+      "video/mp4",
       "video/webm;codecs=vp9,opus",
       "video/webm;codecs=vp8,opus",
       "video/webm",
@@ -200,7 +203,7 @@ export function useRecorder() {
         try {
           recorderRef.current.onstop = () => {
             const blob = new Blob(chunksRef.current, {
-              type: recorderRef.current?.mimeType || "video/webm",
+              type: recorderRef.current?.mimeType || "video/mp4",
             });
             const url = URL.createObjectURL(blob);
 

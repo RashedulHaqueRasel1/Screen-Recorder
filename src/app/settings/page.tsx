@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { signOut } from "next-auth/react";
+import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
 import {
   Bell,
@@ -11,11 +12,14 @@ import {
   Delete,
   Film,
   HardDrive,
+  Mail,
   LogOut,
   Monitor,
+  Moon,
   Palette,
   Shield,
   Sparkles,
+  Sun,
   Trash2,
   User,
   XCircle,
@@ -47,14 +51,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ThemeToggle } from "@/components/common/theme-toggle";
 import { DriveStatus } from "@/components/drive/drive-status";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRecordingsStore } from "@/stores/recordings-store";
 import { useDriveStore } from "@/stores/drive-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { formatBytes } from "@/lib/format";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   return (
@@ -118,11 +121,20 @@ export default function SettingsPage() {
 /* ------------------------------------------------------------------ */
 
 function ProfileTab() {
-  const { user } = useCurrentUser();
+  const { user, status } = useCurrentUser();
 
   const initials = user?.name
     ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
     : "U";
+  const profileRows = [
+    { label: "Name", value: user?.name || "Not signed in", icon: User },
+    { label: "Email", value: user?.email || "—", icon: Mail },
+    {
+      label: "Account status",
+      value: status === "authenticated" ? "Connected with Google" : "Not connected",
+      icon: Shield,
+    },
+  ];
 
   return (
     <TabsContent value="profile" className="space-y-6">
@@ -137,8 +149,8 @@ function ProfileTab() {
               Your account details. These are synced with your Google account.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-4">
+          <CardContent className="space-y-5">
+            <div className="flex flex-col gap-4 rounded-2xl border border-border/40 bg-muted/20 p-4 sm:flex-row sm:items-center">
               <Avatar className="h-16 w-16 border-2 border-border">
                 {user?.image && <AvatarImage src={user.image} alt={user.name ?? ""} />}
                 <AvatarFallback className="bg-gradient-to-tr from-indigo-500 to-purple-600 text-white text-lg font-bold">
@@ -148,7 +160,29 @@ function ProfileTab() {
               <div className="space-y-1">
                 <p className="text-sm font-semibold">{user?.name || "Not signed in"}</p>
                 <p className="text-xs text-muted-foreground">{user?.email || "—"}</p>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-500">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Read-only Google profile
+                </span>
               </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {profileRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="rounded-2xl border border-border/40 bg-card/40 p-3"
+                >
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <row.icon className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">
+                      {row.label}
+                    </span>
+                  </div>
+                  <p className="mt-2 break-words text-sm font-semibold">
+                    {row.value}
+                  </p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -292,6 +326,17 @@ function RecordingTab() {
 /* ------------------------------------------------------------------ */
 
 function AppearanceTab() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  const themeOptions = [
+    { value: "light", label: "Light", icon: Sun },
+    { value: "dark", label: "Dark", icon: Moon },
+    { value: "system", label: "System", icon: Monitor },
+  ] as const;
+
   return (
     <TabsContent value="appearance" className="space-y-6">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -306,12 +351,32 @@ function AppearanceTab() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-3">
-              <ThemeToggle />
-              <span className="text-sm text-muted-foreground">
-                Toggle between light and dark mode
-              </span>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {themeOptions.map((option) => {
+                const Icon = option.icon;
+                const isActive = mounted && theme === option.value;
+
+                return (
+                  <Button
+                    key={option.value}
+                    type="button"
+                    variant={isActive ? "default" : "outline"}
+                    onClick={() => setTheme(option.value)}
+                    className={cn(
+                      "h-12 justify-start gap-2 rounded-2xl",
+                      isActive &&
+                        "bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-purple-500/20"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {option.label}
+                  </Button>
+                );
+              })}
             </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Pick a fixed theme, or follow your device setting with System.
+            </p>
           </CardContent>
         </Card>
       </motion.div>

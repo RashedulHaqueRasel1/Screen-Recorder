@@ -59,12 +59,12 @@ async function refreshAccessToken(refreshToken: string): Promise<{
 
 /**
  * Routes that require an authenticated session.
- * Guests can record (`/record`) and edit (`/editor`) without an account —
- * authentication is only enforced for account-scoped pages.
+ * Recording and account-scoped pages require Google sign-in.
  */
-const PROTECTED_PREFIXES = ["/dashboard", "/history", "/settings"];
+const PROTECTED_PREFIXES = ["/record", "/dashboard", "/history", "/settings"];
 
 export const authConfig = {
+  basePath: "/api/auth",
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -105,7 +105,9 @@ export const authConfig = {
       // Token still valid (with a 5-minute safety margin) → keep as-is.
       const now = Date.now();
       const safetyMarginMs = 5 * 60 * 1000;
-      if (token.expiresAt && token.expiresAt - safetyMarginMs > now) {
+      const expiresAt =
+        typeof token.expiresAt === "number" ? token.expiresAt : undefined;
+      if (expiresAt && expiresAt - safetyMarginMs > now) {
         return token;
       }
 
@@ -142,8 +144,8 @@ export const authConfig = {
     },
 
     /**
-     * Middleware authorization gate. Only account-scoped routes require login;
-     * everything else (including /record and /editor) is public for guests.
+     * Middleware authorization gate. Recording and account-scoped routes
+     * require login; marketing pages remain public.
      */
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;

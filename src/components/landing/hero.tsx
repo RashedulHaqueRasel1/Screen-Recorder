@@ -86,21 +86,21 @@ export function HeroSection() {
             <Button
               asChild
               size="lg"
-              className="h-13 px-7 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white font-semibold shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02] hover:shadow-purple-500/40 text-base"
+              className="h-[52px] w-full px-7 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white font-semibold shadow-lg shadow-purple-500/25 transition-all hover:-translate-y-0.5 hover:shadow-purple-500/40 text-base sm:w-auto"
             >
-              <Link href="/record">
+              <Link href="/record" className="inline-flex items-center justify-center">
                 Start Recording Free
-                <ArrowRight className="ml-2 h-4.5 w-4.5" />
+                <ArrowRight className="ml-2 h-[18px] w-[18px]" />
               </Link>
             </Button>
             <Button
               asChild
               size="lg"
               variant="outline"
-              className="h-13 px-7 rounded-2xl text-base font-semibold"
+              className="h-[52px] w-full px-7 rounded-2xl border-border/70 bg-background/70 text-base font-semibold shadow-sm backdrop-blur hover:-translate-y-0.5 hover:bg-accent/80 sm:w-auto"
             >
-              <Link href="/#how-it-works">
-                <PlayCircle className="mr-2 h-4.5 w-4.5" />
+              <Link href="/#how-it-works" className="inline-flex items-center justify-center">
+                <PlayCircle className="mr-2 h-[18px] w-[18px]" />
                 Watch Demo
               </Link>
             </Button>

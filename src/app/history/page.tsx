@@ -5,10 +5,11 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Clock,
+  Construction,
   Download,
   Film,
   HardDrive,
-  MonitorPlay,
+  Link2,
   MoreVertical,
   Play,
   Plus,
@@ -45,7 +46,8 @@ import { UploadButton } from "@/components/drive/upload-button";
 import { ShareDialog } from "@/components/drive/share-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { useRecordingsStore } from "@/stores/recordings-store";
-import { formatBytes, formatDuration, formatDate, formatRelativeTime } from "@/lib/format";
+import { formatBytes, formatDuration, formatDate } from "@/lib/format";
+import { getRecordingFilename } from "@/lib/recording-file";
 import { cn } from "@/lib/utils";
 import type { Recording } from "@/types/recording";
 
@@ -88,7 +90,7 @@ export default function HistoryPage() {
     if (!rec.url) return;
     const a = document.createElement("a");
     a.href = rec.url;
-    a.download = `${rec.name}.webm`;
+    a.download = getRecordingFilename(rec.name, rec.mimeType);
     a.click();
   };
 
@@ -283,6 +285,7 @@ interface HistoryRowProps {
 }
 
 function HistoryRow({ recording, index, onPreview, onDelete, onDownload }: HistoryRowProps) {
+  const [showEditSoon, setShowEditSoon] = useState(false);
   const statusConfig = {
     local: { label: "Local", className: "bg-black/70 text-white" },
     uploaded: { label: "Uploaded", className: "bg-indigo-500/90 text-white" },
@@ -360,11 +363,9 @@ function HistoryRow({ recording, index, onPreview, onDelete, onDownload }: Histo
                         <Play className="mr-2 h-4 w-4" />
                         Preview
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/editor/${recording.id}`}>
-                          <Scissors className="mr-2 h-4 w-4" />
-                          Edit
-                        </Link>
+                      <DropdownMenuItem onClick={() => setShowEditSoon(true)}>
+                        <Scissors className="mr-2 h-4 w-4" />
+                        Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onDownload(recording)}>
                         <Download className="mr-2 h-4 w-4" />
@@ -428,16 +429,33 @@ function HistoryRow({ recording, index, onPreview, onDelete, onDownload }: Histo
                   size="sm"
                   variant="outline"
                   className="gap-1.5 rounded-xl text-xs"
-                  asChild
+                  onClick={() => setShowEditSoon(true)}
                 >
-                  <Link href={`/editor/${recording.id}`}>
-                    <Scissors className="h-3.5 w-3.5" />
-                    Edit
-                  </Link>
+                  <Scissors className="h-3.5 w-3.5" />
+                  Edit
                 </Button>
-                <UploadButton recording={recording} variant="outline" size="sm" className="rounded-xl" showInlineShare />
+                <UploadButton
+                  recording={recording}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl"
+                  showInlineShare={false}
+                />
                 {(recording.status === "uploaded" || recording.status === "shared") && recording.shareUrl && (
-                  <ShareDialog recording={recording} />
+                  <ShareDialog
+                    recording={recording}
+                    trigger={
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 rounded-xl border-emerald-500/30 text-xs text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-600"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        Share Link
+                      </Button>
+                    }
+                  />
                 )}
                 <Button
                   size="sm"
@@ -453,6 +471,27 @@ function HistoryRow({ recording, index, onPreview, onDelete, onDownload }: Histo
           </div>
         </CardContent>
       </Card>
+      <Dialog open={showEditSoon} onOpenChange={setShowEditSoon}>
+        <DialogContent className="max-w-sm overflow-hidden border-border/60 p-0">
+          <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 px-6 pb-5 pt-6">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg shadow-purple-500/25">
+              <Construction className="h-5 w-5" />
+            </div>
+            <DialogHeader>
+              <DialogTitle className="text-xl">Coming soon</DialogTitle>
+              <DialogDescription>
+                Video editing is being worked on and will be available soon.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="px-6 pb-6 pt-2">
+            <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+              Trim, polish, and export tools are on the roadmap. For now, your
+              original recording stays safe and ready to download or publish.
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

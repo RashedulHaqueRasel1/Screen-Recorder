@@ -39,6 +39,8 @@ interface UploadButtonProps {
   className?: string;
   /** Show inline share actions next to the Published button (default: true). */
   showInlineShare?: boolean;
+  shareActionsShowUrl?: boolean;
+  shareActionsShowShare?: boolean;
   label?: string;
 }
 
@@ -48,6 +50,8 @@ export function UploadButton({
   size = "sm",
   className,
   showInlineShare = true,
+  shareActionsShowUrl = true,
+  shareActionsShowShare = true,
   label,
 }: UploadButtonProps) {
   const { uploadingId, progress, error, uploadRecording } = useDriveUpload();
@@ -148,7 +152,12 @@ export function UploadButton({
 
       {/* --- Inline share actions (visible immediately once published) --- */}
       {showInlineShare && isUploaded && (
-        <ShareActions recording={current} size={size} showUrl />
+        <ShareActions
+          recording={current}
+          size={size}
+          showUrl={shareActionsShowUrl}
+          showShare={shareActionsShowShare}
+        />
       )}
 
       {/* --- Success notification banner --- */}
@@ -160,8 +169,8 @@ export function UploadButton({
               <p className="text-sm font-semibold text-emerald-500">
                 Published successfully!
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5 truncate font-mono">
-                {shareUrl}
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Your share link is ready.
               </p>
               <div className="flex items-center flex-wrap gap-2 mt-2">
                 <Button
@@ -245,11 +254,13 @@ export function UploadButton({
             </DialogDescription>
           </DialogHeader>
           <div className="py-2 space-y-3">
-            <div className="rounded-xl border border-border bg-card/40 p-3">
-              <p className="text-xs text-muted-foreground mb-1">
-                Shareable link
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <p className="text-sm font-semibold text-emerald-500">
+                Shareable link ready
               </p>
-              <p className="text-xs font-mono break-all">{shareUrl}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Copy it, open it, or share it from the buttons below.
+              </p>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <Button

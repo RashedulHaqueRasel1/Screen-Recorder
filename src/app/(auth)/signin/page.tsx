@@ -40,7 +40,7 @@ function SignInContent() {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    await signIn("google", { callbackUrl });
+    await signIn("google", { redirectTo: callbackUrl });
   };
 
   return (

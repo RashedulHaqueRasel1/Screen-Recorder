@@ -40,7 +40,7 @@ export function useRequireAuth() {
         returnPath: pathname,
       });
 
-      signIn("google", { callbackUrl: pathname });
+      signIn("google", { redirectTo: pathname });
       return undefined;
     },
     [isAuthenticated, pathname, setPending]

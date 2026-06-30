@@ -21,6 +21,10 @@ interface UseFFmpegReturn {
 
 const BASE_URL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm";
 
+function toBlobPart(data: string | Uint8Array): BlobPart {
+  return typeof data === "string" ? data : new Uint8Array(data);
+}
+
 export function useFFmpeg(): UseFFmpegReturn {
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -99,7 +103,8 @@ export function useFFmpeg(): UseFFmpegReturn {
         await ffmpeg.deleteFile(inputName);
         await ffmpeg.deleteFile(outputFilename);
 
-        return new Blob([data], { type: `video/${outputFilename.split(".").pop() || "webm"}` });
+        const blobData = toBlobPart(data);
+        return new Blob([blobData], { type: `video/${outputFilename.split(".").pop() || "webm"}` });
       } catch (err) {
         setProcessingError(err instanceof Error ? err.message : "Processing failed");
         throw err;
@@ -193,8 +198,8 @@ export function useFFmpeg(): UseFFmpegReturn {
         await ffmpeg.deleteFile("part2.webm");
 
         return {
-          part1: new Blob([part1Data], { type: "video/webm" }),
-          part2: new Blob([part2Data], { type: "video/webm" }),
+          part1: new Blob([toBlobPart(part1Data)], { type: "video/webm" }),
+          part2: new Blob([toBlobPart(part2Data)], { type: "video/webm" }),
         };
       } catch (err) {
         setProcessingError(err instanceof Error ? err.message : "Processing failed");
