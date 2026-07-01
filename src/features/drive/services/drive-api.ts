@@ -16,6 +16,13 @@ interface UploadResult {
  * Convert a blob URL or stored recording into a File for upload.
  */
 async function recordingToFile(recording: Recording): Promise<File | null> {
+  if (recording.blob) {
+    const mimeType = getUploadMimeType(recording.mimeType || recording.blob.type);
+    return new File([recording.blob], getRecordingFilename(recording.name, mimeType), {
+      type: mimeType,
+    });
+  }
+
   // If we have a blob URL that's still active
   if (recording.url && recording.url.startsWith("blob:")) {
     try {
@@ -53,7 +60,12 @@ export async function uploadToDrive(
     mimeType: uploadMimeType,
   };
 
-  const sessionResponse = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=resumable`, {
+  const uploadParams = new URLSearchParams({
+    uploadType: "resumable",
+    fields: "id,name,webViewLink",
+  });
+
+  const sessionResponse = await fetch(`${DRIVE_UPLOAD_URL}?${uploadParams}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -74,43 +86,11 @@ export async function uploadToDrive(
     throw new Error("Failed to get upload session URL from Drive.");
   }
 
-  // Step 2: Upload the file content with progress tracking
-  await uploadWithProgress(sessionUrl, file, uploadMimeType, onProgress);
+  // Step 2: Upload the file content with progress tracking. The final response
+  // is the uploaded Drive file; do not create a second empty file for metadata.
+  const result = await uploadWithProgress(sessionUrl, file, uploadMimeType, onProgress);
 
-  // Step 3: Get file metadata (link, id)
-  const metaResponse = await fetch(`${DRIVE_FILES_URL}?fields=id,name,webViewLink`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({}),
-  });
-
-  // Fallback: query the file by listing recent
-  let result: UploadResult;
-  if (metaResponse.ok) {
-    const data = await metaResponse.json();
-    result = {
-      id: data.id,
-      name: data.name,
-      webViewLink: data.webViewLink,
-    };
-  } else {
-    // Construct from upload session — get the file ID via list
-    const listResponse = await fetch(
-      `${DRIVE_FILES_URL}?q=name='${encodeURIComponent(metadata.name)}'&fields=files(id,name,webViewLink)&orderBy=createdTime desc&pageSize=1`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
-    );
-    const listData = await listResponse.json();
-    const found = listData.files?.[0];
-    if (!found) throw new Error("Upload succeeded but could not retrieve file info.");
-    result = { id: found.id, name: found.name, webViewLink: found.webViewLink };
-  }
-
-  // Step 4: Make the file shareable (anyone with link can view)
+  // Step 3: Make the file shareable (anyone with link can view)
   await makeFileShareable(result.id, accessToken);
 
   return result;
@@ -120,20 +100,21 @@ export async function uploadToDrive(
  * Set file permissions so anyone with the link can view.
  */
 async function makeFileShareable(fileId: string, accessToken: string): Promise<void> {
-  try {
-    await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        role: "reader",
-        type: "anyone",
-      }),
-    });
-  } catch {
-    // Non-fatal — user can manually share
+  const response = await fetch(`${DRIVE_FILES_URL}/${fileId}/permissions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      role: "reader",
+      type: "anyone",
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Upload succeeded, but sharing failed: ${response.status} ${errorText}`);
   }
 }
 
@@ -145,7 +126,7 @@ function uploadWithProgress(
   file: File,
   mimeType: string,
   onProgress?: (progress: number) => void
-): Promise<Response> {
+): Promise<UploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
 
@@ -158,7 +139,21 @@ function uploadWithProgress(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(new Response(xhr.response, { status: xhr.status }));
+        try {
+          const data = JSON.parse(xhr.responseText || "{}");
+          if (!data.id) {
+            reject(new Error("Upload succeeded but Drive did not return a file ID."));
+            return;
+          }
+
+          resolve({
+            id: data.id,
+            name: data.name || file.name,
+            webViewLink: data.webViewLink || generateShareUrl(data.id),
+          });
+        } catch {
+          reject(new Error("Upload succeeded but Drive returned invalid file metadata."));
+        }
       } else {
         reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.responseText}`));
       }
