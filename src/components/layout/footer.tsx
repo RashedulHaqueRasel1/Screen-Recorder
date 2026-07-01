@@ -26,7 +26,7 @@ const footerSections = [
       { label: "About", href: "#" },
       { label: "Careers", href: "#" },
       { label: "Contact", href: "#" },
-      { label: "Privacy", href: "#" },
+      { label: "Privacy", href: "/privacy" },
     ],
   },
 ];
@@ -87,9 +87,9 @@ export function Footer() {
             © {new Date().getFullYear()} RecStudio. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <Link href="#" className="hover:text-foreground transition-colors">Terms</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Privacy</Link>
-            <Link href="#" className="hover:text-foreground transition-colors">Cookies</Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+            <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link href="/privacy#cookies" className="hover:text-foreground transition-colors">Cookies</Link>
           </div>
         </div>
       </div>
